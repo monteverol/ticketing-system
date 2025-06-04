@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-hot-toast";
 
 const API_URL = "http://localhost:5002/api/tickets";
 
@@ -17,6 +18,7 @@ export function useTickets() {
       setTickets(data);
     } catch (err) {
       setError("Failed to load tickets.");
+      toast.error("Failed to load tickets.")
     } finally {
       setLoading(false);
     }
@@ -33,6 +35,7 @@ export function useTickets() {
     } catch (err) {
       console.error("Failed to load department tickets:", err);
       setError("Could not load department tickets.");
+      toast.error("Could not load department tickets");
     } finally {
       setLoading(false);
     }
@@ -52,11 +55,14 @@ export function useTickets() {
       const newTicket = await res.json();
       if (res.ok) {
         setTickets((prev) => [newTicket, ...prev]);
+        toast.success("Ticket created");
       } else {
         console.error("Ticket creation failed:", newTicket.error);
+        toast.error("Ticket creation failed");
       }
     } catch (err) {
       console.error("createTicket error:", err);
+      toast.error("Ticket creation failed");
     }
   };
 
@@ -75,8 +81,10 @@ export function useTickets() {
       setTickets((prev) =>
         prev.map((t) => (t.ticket_id === id ? updated : t))
       );
+      toast.success("Ticket updated");
     } catch (err) {
       setError("Failed to update ticket.");
+      toast.error("Failed to update ticket");
     }
   };
 

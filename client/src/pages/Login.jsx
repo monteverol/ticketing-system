@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Eye, EyeOff, User, Lock, AlertCircle, Ticket, Shield } from "lucide-react";
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-hot-toast"
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -28,14 +29,16 @@ export default function Login() {
       if (res.ok) {
         const user = await res.json();
         login(user.user_id, user.username, user.role, user.department);
+        toast.success("Login successful");
         navigate("/dashboard");
         // alert("Login successful! Replace this with your navigation logic.");
       } else {
         const data = await res.json();
-        setError(data.error || "Login failed");
+        toast.error(data.error || "Login failed");
       }
     } catch (err) {
       setError("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setIsLoading(false);
     }

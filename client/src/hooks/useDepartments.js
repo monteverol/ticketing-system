@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "react-hot-toast";
 
 export function useDepartments() {
   const { user } = useAuth();
@@ -14,6 +15,7 @@ export function useDepartments() {
       setDepartments(data);
     } catch (err) {
       setError("Failed to load tickets.");
+      toast.error("Failed to load tickets.");
     } finally {
       setLoading(false);
     }

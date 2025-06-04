@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import TicketModal from "../tickets/TicketModal";
 import { useAuth } from "../../../context/AuthContext";
 import { useTickets } from "../../../hooks/useTickets";
+import { toast } from "react-hot-toast";
 
 export default function DepartmentTicketList({ departmentTickets, refetchDepartmentTickets, loading }) {
   const { user } = useAuth();
@@ -32,20 +33,37 @@ export default function DepartmentTicketList({ departmentTickets, refetchDepartm
   };
   
   const handleSave = async (id, updates) => {
-    await fetch(`http://localhost:5002/api/tickets/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...updates,
-        user_id: user.user_id,
-        responding_department: user.department,
-        purpose: selectedTicket.purpose,
-        description: selectedTicket.description,
-      }),
-    });
+    const updatePromise = async () => {
+      const response = await fetch(`http://localhost:5002/api/tickets/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...updates,
+          user_id: user.user_id,
+          responding_department: user.department,
+          purpose: selectedTicket.purpose,
+          description: selectedTicket.description,
+        }),
+      });
 
-    await refetchDepartmentTickets(); // ✅ refresh state from global hook
-    setSelectedTicket(null); // Close the modal after save
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to update ticket');
+      }
+
+      await refetchDepartmentTickets(); // Refresh global state
+      setSelectedTicket(null); // Close modal
+      return response; // Optional: return if needed
+    };
+
+    toast.promise(
+      updatePromise(),
+      {
+        loading: 'Saving ticket...',
+        success: 'Ticket saved successfully!',
+        error: (err) => `Save failed: ${err.message}`,
+      }
+    );
   };
 
   if (loading) return <p>Loading department tickets...</p>;
@@ -60,8 +78,8 @@ export default function DepartmentTicketList({ departmentTickets, refetchDepartm
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
+    <div className="">
+      <div className="flex justify-between items-center mb-4">
         {/* <h2 className="text-xl font-bold">Department Tickets</h2> */}
         <div className="text-sm text-gray-500">
           Showing {departmentTickets.length} {departmentTickets.length === 1 ? "ticket" : "tickets"}

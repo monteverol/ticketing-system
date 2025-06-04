@@ -3,113 +3,9 @@ import React from "react";
 import { TrendingUp, Clock, CheckCircle, AlertCircle, Eye, Settings, Calendar } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
 import { useTickets } from "../../hooks/useTickets";
-
-const AnimatedCounter = ({ value, duration = 2000 }) => {
-  const [count, setCount] = React.useState(0);
-  
-  React.useEffect(() => {
-    let start = 0;
-    const end = parseInt(value);
-    if (start === end) return;
-    
-    const timer = setInterval(() => {
-      start += Math.ceil(end / (duration / 50));
-      if (start > end) {
-        setCount(end);
-        clearInterval(timer);
-      } else {
-        setCount(start);
-      }
-    }, 50);
-    
-    return () => clearInterval(timer);
-  }, [value, duration]);
-  
-  return <span>{count}</span>;
-};
-
-const Progress = ({ value, className, color = "blue" }) => {
-  const [animatedValue, setAnimatedValue] = React.useState(0);
-  
-  React.useEffect(() => {
-    const timer = setTimeout(() => setAnimatedValue(value), 300);
-    return () => clearTimeout(timer);
-  }, [value]);
-
-  const colorMap = {
-    blue: 'from-blue-500 to-blue-600',
-    green: 'from-emerald-500 to-emerald-600',
-    purple: 'from-purple-500 to-purple-600',
-    orange: 'from-orange-500 to-orange-600'
-  };
-  
-  return (
-    <div className={`bg-gradient-to-r from-gray-100 to-gray-200 rounded-full overflow-hidden relative ${className}`}>
-      <div 
-        className={`h-full bg-gradient-to-r ${colorMap[color]} transition-all duration-1000 ease-out relative overflow-hidden`}
-        style={{ width: `${animatedValue}%` }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 animate-pulse" />
-      </div>
-    </div>
-  );
-};
-
-const StatCard = ({ title, value, icon: Icon, color, trend, subtitle, gradient }) => (
-  <div className={`relative overflow-hidden rounded-2xl p-6 shadow-2xl border border-white/20 backdrop-blur-sm bg-gradient-to-br ${gradient} group hover:scale-105 transition-all duration-300`}>
-    <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/10" />
-    <div className="relative z-10">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`p-3 rounded-xl bg-white/20 backdrop-blur-sm border border-white/30`}>
-          <Icon className={`h-6 w-6 text-white`} />
-        </div>
-        {trend && (
-          <div className="flex items-center space-x-1 text-white/80 text-sm">
-            <TrendingUp className="h-4 w-4" />
-            <span>{trend}</span>
-          </div>
-        )}
-      </div>
-      <div className="space-y-2">
-        <h3 className="text-white/90 font-medium text-sm uppercase tracking-wide">{title}</h3>
-        <div className="text-3xl font-bold text-white">
-          <AnimatedCounter value={value} />
-        </div>
-        {subtitle && <p className="text-white/70 text-sm">{subtitle}</p>}
-      </div>
-    </div>
-    <div className="absolute -bottom-2 -right-2 opacity-10">
-      <Icon className="h-16 w-16 text-white" />
-    </div>
-  </div>
-);
-
-const StatusBadge = ({ status, count }) => {
-  const statusConfig = {
-    pending: { color: 'from-amber-400 to-orange-500', icon: Clock, label: 'Pending' },
-    viewed: { color: 'from-blue-400 to-blue-600', icon: Eye, label: 'Viewed' },
-    processing: { color: 'from-purple-400 to-purple-600', icon: Settings, label: 'Processing' },
-    resolved: { color: 'from-emerald-400 to-emerald-600', icon: CheckCircle, label: 'Resolved' },
-    default: { color: 'from-gray-400 to-gray-600', icon: AlertCircle, label: 'Other' }
-  };
-  
-  const config = statusConfig[status] || statusConfig.default;
-  const Icon = config.icon;
-  
-  return (
-    <div className="group flex items-center justify-between p-3 rounded-xl bg-white/50 backdrop-blur-sm border border-white/30 hover:bg-white/70 transition-all duration-300 hover:scale-105 hover:drop-shadow-md">
-      <div className="flex items-center space-x-3">
-        <div className={`p-2 rounded-lg bg-gradient-to-r ${config.color} shadow-lg`}>
-          <Icon className="h-4 w-4 text-white" />
-        </div>
-        <span className="font-medium text-gray-700 capitalize">{config.label}</span>
-      </div>
-      <div className="bg-gradient-to-r from-gray-600 to-gray-800 text-white px-3 py-1 rounded-full text-sm font-bold shadow-lg">
-        {count}
-      </div>
-    </div>
-  );
-};
+import Progress from "../ui/widgets/Progress";
+import StatCard from "../ui/widgets/StatCard";
+import StatusBadge from "../ui/widgets/StatusBadge";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -126,7 +22,7 @@ export default function Dashboard() {
   const pendingCount = statusCounts.pending || 0;
   const processingCount = statusCounts.processing || 0;
   const resolvedPercentage = totalTickets > 0 ? (resolvedCount / totalTickets * 100) : 0;
-  const processingPercentage = totalTickets > 0 ? (processingCount / totalTickets * 100) : 0;
+  const processingPercentage = totalTickets > 0 ? (processingCount / (totalTickets - resolvedCount) * 100) : 0;
 
   // Recent activity data
   const recentTickets = departmentTickets?.slice(0, 3) || [];
@@ -168,7 +64,7 @@ export default function Dashboard() {
             value={totalTickets}
             icon={AlertCircle}
             gradient="from-blue-600 to-blue-800"
-            trend="+12%"
+            trend="-"
             subtitle="All time"
           />
           
@@ -177,7 +73,7 @@ export default function Dashboard() {
             value={resolvedCount}
             icon={CheckCircle}
             gradient="from-emerald-600 to-emerald-800"
-            trend="+8%"
+            trend="-"
             subtitle={`${Math.round(resolvedPercentage)}% completion`}
           />
           
@@ -186,7 +82,7 @@ export default function Dashboard() {
             value={processingCount}
             icon={Settings}
             gradient="from-purple-600 to-purple-800"
-            trend="+5%"
+            trend="-"
             subtitle="Active tickets"
           />
           
@@ -195,7 +91,7 @@ export default function Dashboard() {
             value={pendingCount}
             icon={Clock}
             gradient="from-orange-600 to-orange-800"
-            trend="-3%"
+            trend="-"
             subtitle="Awaiting action"
           />
         </div>

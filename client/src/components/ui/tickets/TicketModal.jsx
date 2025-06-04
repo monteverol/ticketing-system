@@ -37,10 +37,10 @@ export default function TicketModal({ ticket, onClose, onSave }) {
     fetchAttachments();
   }, [ticket.ticket_id]);
 
-  const handleSave = () => {
-    onSave(ticket.ticket_id, { status, remarks });
+  const handleSave = async () => {
+    await onSave(ticket.ticket_id, { status, remarks });
     setRemarks("");
-    onClose();
+    // onClose();
   };
 
   const statusOptions = [
@@ -318,7 +318,7 @@ export default function TicketModal({ ticket, onClose, onSave }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm m-0">
       <div className="bg-white rounded-lg shadow-xl w-full h-[70vh] max-w-4xl overflow-y-scroll flex flex-col relative">
         {/* Header */}
         <div className="bg-gray-50 px-6 py-4 border-b flex justify-between items-center sticky top-0 z-50">

@@ -76,10 +76,8 @@ export const createTicket = async (req, res) => {
       requires_manager_approval = "false"
     } = req.body;
 
-    // coerce the boolean
     const needsApproval = requires_manager_approval === "true";
 
-    // 1) create the ticket
     const ticket = await Ticket.create({
       user_id: parseInt(user_id, 10),
       responding_department,
@@ -89,19 +87,16 @@ export const createTicket = async (req, res) => {
       requires_manager_approval: needsApproval
     });
 
-    // 2) if there are any uploaded files, save them in the Attachment table
     if (Array.isArray(req.files)) {
       await Promise.all(req.files.map(file =>
         Attachment.create({
           ticket_id: ticket.ticket_id,
-          // you could also attach to ticket_update_id if updating later
           filename: file.originalname,
           url: `/uploads/${file.filename}`
         })
       ));
     }
 
-    // 3) re‐fetch the ticket, including its attachments and requester
     const full = await Ticket.findByPk(ticket.ticket_id, {
       include: [
         { model: User, as: "requester", attributes: ["username","department"] },
@@ -115,10 +110,9 @@ export const createTicket = async (req, res) => {
     });
 
     if (requester && requester.email) {
-      // 6) Only send email if there _is_ an email column present
       await transporter.sendMail({
-        from: `"Ticketing System" <${process.env.GMAIL_USER}>`,
-        to: requester.email,                               // <— this must be defined
+        from: `"Ticketing System" <${EMAIL_FROM}>`,
+        to: requester.email,
         subject: `Ticket #${ticket.ticket_id} Received`,
         text: `
           Hello ${requester.username},
@@ -180,17 +174,56 @@ export const updateTicket = async (req, res) => {
     // 3. Return updated record with associations
     const updated = await Ticket.findByPk(id, {
       include: [
-        { model: User, as: "requester", attributes: ["username", "department"] },
+        { model: User, as: "requester", attributes: ["username", "department", "email"] },
         {
           model: TicketUpdate,
           as: "updates",
           include: [
-            { model: User, as: "updater", attributes: ["username"] }
+            { model: User, as: "updater", attributes: ["username", "role"] }
           ],
           order: [["updatedAt", "ASC"]]
         }
       ]
     });
+
+    const lastUpdate = updated.updates[updated.updates.length - 1];
+
+    // 4) If the requester has an email, send them a notification
+    if (updated.requester?.email) {
+      const { username, email } = updated.requester;
+
+      // Craft a simple plain‐text summary (feel free to tweak as HTML if you prefer)
+      const mailOptions = {
+        from: `"Ticketing System" <${EMAIL_FROM}>`,
+        to: email,
+        subject: `Update on Ticket #${updated.ticket_id}`,
+        text: `
+          Hello ${username},
+
+          Your ticket (#${updated.ticket_id}) in the ${updated.responding_department} queue has been updated.
+
+            • New Status: ${status}
+            • Remarks: ${remarks || "(no remarks)"}
+            • Updated By: ${lastUpdate.updater.username} (role: ${lastUpdate.updater.role})
+
+          Thank you,
+          Support Team
+        `.trim(),
+      };
+
+      try {
+        await transporter.sendMail(mailOptions);
+      } catch (mailErr) {
+        console.warn(
+          `⚠️  Failed to send update email for ticket ${id} to ${email}:`,
+          mailErr.message
+        );
+      }
+    } else {
+      console.warn(
+        `⚠️  Skipping “ticket updated” email because user_id=${updated.user_id} has no email on file.`
+      );
+    }
 
     res.json(updated);
   } catch (err) {

@@ -6,6 +6,7 @@ import {
   Shield, UserCheck, ListChecks, BarChart2, X
 } from "lucide-react";
 import TicketForm from "../components/ui/tickets/TicketForm";
+import { toast } from "react-hot-toast";
 
 export default function MainWrapper() {
   const { user, logout } = useAuth();
@@ -86,13 +87,14 @@ export default function MainWrapper() {
 
   const handleLogout = () => {
     logout();
+    toast.success("Logged out successfully");
     navigate('/login');
   }
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar Navigation */}
-      <div className="hidden md:flex flex-col w-64 border-r border-gray-200 bg-white p-4 shadow-sm z-50">
+      <div className="hidden md:flex flex-col w-64 border-r border-gray-200 bg-white p-4 shadow-sm z-10">
         <div className="flex items-center gap-3 mb-8 p-3">
           <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold">
             {user?.username?.charAt(0).toUpperCase()}
