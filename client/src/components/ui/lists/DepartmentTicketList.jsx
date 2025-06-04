@@ -1,21 +1,11 @@
-import { useState } from "react";
-import TicketForm from "./TicketForm";
-import TicketModal from "./TicketModal";
-import ViewTicket from "./ViewTicket";
-import { useAuth } from "../context/AuthContext";
+import { useEffect, useState } from "react";
+import TicketModal from "../tickets/TicketModal";
+import { useAuth } from "../../../context/AuthContext";
+import { useTickets } from "../../../hooks/useTickets";
 
-export default function MyTicketList({ tickets, updateTicket, loading, error }) {
-  const [editingTicket, setEditingTicket] = useState(null);
-  const [selectedTicket, setSelectedTicket] = useState();
+export default function DepartmentTicketList({ departmentTickets, refetchDepartmentTickets, loading }) {
   const { user } = useAuth();
-
-  if (loading) return <p>Loading tickets...</p>;
-  if (error) return <p className="text-red-600">{error}</p>;
-
-  const handleUpdate = (updatedFields) => {
-    updateTicket(editingTicket.id, updatedFields);
-    setEditingTicket(null);
-  };
+  const [selectedTicket, setSelectedTicket] = useState(null);
 
   const handleClick = async (ticket) => {
     if (ticket.status === "pending") {
@@ -34,13 +24,15 @@ export default function MyTicketList({ tickets, updateTicket, loading, error }) 
 
       const updated = await res.json();
       setSelectedTicket(updated);
+
+      await refetchDepartmentTickets();
     } else {
       setSelectedTicket(ticket);
     }
   };
-
+  
   const handleSave = async (id, updates) => {
-    const res = await fetch(`http://localhost:5002/api/tickets/${id}`, {
+    await fetch(`http://localhost:5002/api/tickets/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -51,21 +43,37 @@ export default function MyTicketList({ tickets, updateTicket, loading, error }) 
         description: selectedTicket.description,
       }),
     });
-    const updated = await res.json();
-    setTickets((prev) =>
-      prev.map((t) => (t.ticket_id === id ? updated : t))
-    );
+
+    await refetchDepartmentTickets(); // ✅ refresh state from global hook
+    setSelectedTicket(null); // Close the modal after save
   };
+
+  if (loading) return <p>Loading department tickets...</p>;
+
+  const statusOptions = [
+    { value: "viewed", label: "Viewed", color: "bg-blue-100 hover:bg-blue-200 text-blue-800", text: "bg-blue-200 text-blue-800" },
+    { value: "pending_approval", label: "Pending Approval", color: "bg-purple-100 hover:bg-purple-200 text-purple-800", text: "bg-purple-200 text-purple-800" },
+    { value: "pending", label: "Pending", color: "bg-orange-100 hover:bg-orange-200 text-orange-800", text: "bg-orange-200 text-orange-800" },
+    { value: "processing", label: "Processing", color: "bg-purple-100 hover:bg-purple-200 text-purple-800", text: "bg-purple-200 text-purple-800" },
+    { value: "resolved", label: "Resolved", color: "bg-green-100 hover:bg-green-200 text-green-800", text: "bg-green-200 text-green-800" },
+    { value: "unresolved", label: "Unresolved", color: "bg-red-100 hover:bg-red-200 text-red-800", text: "bg-red-200 text-red-800" },
+  ];
 
   return (
     <div className="space-y-4">
-      <h2 className="text-xl font-semibold">My Tickets</h2>
+      <div className="flex justify-between items-center">
+        {/* <h2 className="text-xl font-bold">Department Tickets</h2> */}
+        <div className="text-sm text-gray-500">
+          Showing {departmentTickets.length} {departmentTickets.length === 1 ? "ticket" : "tickets"}
+        </div>
+      </div>
+
       <div className="overflow-x-auto bg-white rounded-lg shadow">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                ID
+                ID#
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Request
@@ -74,60 +82,45 @@ export default function MyTicketList({ tickets, updateTicket, loading, error }) 
                 Created
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Updated
+              </th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Purpose
               </th>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Approval
-              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {Array.isArray(tickets) ? (
-              tickets.map((t, idx) => (
+            {Array.isArray(departmentTickets) && departmentTickets.length > 0 ? (
+              departmentTickets.map((t, idx) => (
                 <tr 
                   key={idx} 
-                  className={`cursor-pointer hover:bg-gray-50 ${
-                    t.status === "pending" ? "bg-blue-50" : 
-                    t.status === "resolved" ? "bg-green-50" : ""
-                  }`}
+                  className={`cursor-pointer ${statusOptions.find(o => o.value === t.status)?.color}`}
                   onClick={() => handleClick(t)}
                 >
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    #{t.ticket_id}
+                    {t.ticket_id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{t.username}</div>
-                    <div className="text-sm text-gray-500 truncate max-w-xs">{t.requesting_department}</div>
+                    <div className="text-sm font-medium text-gray-900">{t.requester?.username ?? "-"}</div>
+                    <div className="text-sm text-gray-500 truncate max-w-xs">{t.requester?.department ?? "-"}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(t.created_at).toLocaleDateString()}
+                    {new Date(t.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(t.updatedAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-gray-900 uppercase">{t.purpose}</div>
                     <div className="text-sm text-gray-500 truncate max-w-xs">{t.description}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      t.status === "pending" ? "bg-blue-100 text-blue-800" :
-                      t.status === "resolved" ? "bg-green-100 text-green-800" :
-                      "bg-gray-100 text-gray-800"
-                    }`}>
+                    <span className={`px-2 py-1 text-xs rounded-full ${statusOptions.find(o => o.value === t.status)?.text}`}>
                       {t.status}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {t.requires_manager_approval ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Approved
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Not required
-                      </span>
-                    )}
                   </td>
                 </tr>
               ))
@@ -141,20 +134,13 @@ export default function MyTicketList({ tickets, updateTicket, loading, error }) 
           </tbody>
         </table>
       </div>
-      
+
       {selectedTicket && (
-        <ViewTicket
+        <TicketModal
           ticket={selectedTicket}
           onClose={() => setSelectedTicket(null)}
           onSave={handleSave}
         />
-      )}
-
-      {editingTicket && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold mb-2">Update Ticket</h3>
-          <TicketForm initialData={editingTicket} onSubmit={handleUpdate} />
-        </div>
       )}
     </div>
   );

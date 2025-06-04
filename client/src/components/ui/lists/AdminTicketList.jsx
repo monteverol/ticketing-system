@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import TicketItem from "./TicketItem";
+import TicketItem from "../tickets/TicketItem";
 
 export default function AdminTicketList() {
   const [tickets, setTickets] = useState([]);
