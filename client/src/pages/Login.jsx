@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext";
 import { toast } from "react-hot-toast"
 
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
+
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -20,7 +22,7 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:5002/api/auth/login", {
+      const res = await fetch(`${BASE_URL}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password }),

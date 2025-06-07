@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import TicketForm from "../components/ui/tickets/TicketForm";
 import { toast } from "react-hot-toast";
+import ConfirmLogoutModal from "../components/ui/modals/ConfirmLogoutModal";
 
 export default function MainWrapper() {
   const { user, logout } = useAuth();
@@ -14,6 +15,7 @@ export default function MainWrapper() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState("dashboard");
   const [submitTicketModal, setSubmitTicketModal] = useState(false);
+  const [logoutModal, setLogoutModal] = useState(false);
 
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const toggleNotifications = () => setIsNotificationOpen(!isNotificationOpen);
@@ -122,10 +124,10 @@ export default function MainWrapper() {
         <div className="mt-auto space-y-1">
           <NavItem icon={Settings} label="Settings" value="settings" />
           <div
-            onClick={handleLogout}
-            className="flex items-center gap-3 p-3 rounded-lg cursor-pointer text-gray-600 bg-red-50 group hover:bg-red-100 hover:text-red-600 transition-all"
+            onClick={() => setLogoutModal(true)}
+            className="flex items-center gap-3 p-3 rounded-lg cursor-pointer text-gray-500 bg-red-200 group hover:bg-red-300 hover:text-gray-700 transition-all"
           >
-            <LogOut size={20} className="text-gray-500 group-hover:text-red-500" />
+            <LogOut size={20} className="text-gray-500 group-hover:text-gray-700" />
             <span className="font-medium">Logout</span>
           </div>
         </div>
@@ -134,13 +136,14 @@ export default function MainWrapper() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto bg-gray-50">
           <Outlet />
         </div>
       </div>
 
       {/* MODALS */}
       {submitTicketModal && <TicketForm setSubmitTicketModal={setSubmitTicketModal} />}
+      {logoutModal && <ConfirmLogoutModal onClose={() => setLogoutModal(false)} handleLogout={handleLogout} />}
     </div>
   );
 }

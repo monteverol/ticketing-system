@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import TicketForm from "../tickets/TicketForm";
 import ViewTicket from "../tickets/ViewTicket";
 import { useAuth } from "../../../context/AuthContext";
 import { useTickets } from "../../../hooks/useTickets";
 
 export default function MyTicketList() {
+  const navigate = useNavigate();
   const [editingTicket, setEditingTicket] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState();
   const { user } = useAuth();
@@ -19,26 +21,7 @@ export default function MyTicketList() {
   };
 
   const handleClick = async (ticket) => {
-    setSelectedTicket(ticket);
-    if (ticket.status === "pending" && user.department === ticket.responding_department) {
-      const res = await fetch(`http://localhost:5002/api/tickets/${ticket.ticket_id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: user.user_id,
-          responding_department: user.department,
-          purpose: ticket.purpose,
-          description: ticket.description,
-          status: "viewed",
-          remarks: ticket.remarks || "",
-        }),
-      });
-
-      const updated = await res.json();
-      setSelectedTicket(updated);
-    } else {
-      setSelectedTicket(ticket);
-    }
+    navigate(`/tickets/${ticket.ticket_id}`);
   };
 
   const handleSave = async (id, updates) => {

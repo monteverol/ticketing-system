@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getTickets,
+  getTicketById,
   getDepartmentTickets,
   createTicket,
   updateTicket,
@@ -15,6 +16,7 @@ import db from "../db/index.js";
 const router = express.Router();
 
 router.get("/", getTickets); // /api/tickets?username=alice
+router.get("/:id", getTicketById);
 router.get("/:id/updates", getTicketUpdates);
 router.get('/:ticketId/attachments', listAttachments);
 router.get('/updates/:updateId/attachments', listAttachments);

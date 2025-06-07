@@ -28,11 +28,6 @@ export default (sequelize) => {
         allowNull: false,
         validate: { isIn: [['admin','manager','employee']] },
       },
-      email: {
-        type: DataTypes.STRING,
-        allowNull: false,
-        unique: true,
-      },
     },
     {
       sequelize,

@@ -1,7 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
+import useSocket from "./useSocket"; // 🔥 NEW
+import { toast } from "react-hot-toast"; // optional but nice
 
-const API_URL = "http://localhost:5002/api/tickets";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5002";
+const API_URL = `${BASE_URL}/api/tickets`;
 
 export function useApprovals() {
   const { user } = useAuth();
@@ -9,7 +12,33 @@ export function useApprovals() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // 1. Fetch the list of tickets needing your approval
+  // 🔁 Handle real-time updates
+  useSocket(
+    (newTicket) => {
+      // If it needs manager approval AND is for my department, add it
+      if (
+        newTicket.requires_manager_approval &&
+        newTicket.status === "pending_approval" &&
+        newTicket.responding_department === user?.department
+      ) {
+        setPending((prev) => [newTicket, ...prev]);
+        toast.success("New ticket pending approval");
+      }
+    },
+    (updatedTicket) => {
+      // If ticket was approved or no longer pending_approval, remove it
+      if (
+        updatedTicket.responding_department === user?.department &&
+        updatedTicket.status !== "pending_approval"
+      ) {
+        setPending((prev) =>
+          prev.filter((t) => t.ticket_id !== updatedTicket.ticket_id)
+        );
+      }
+    }
+  );
+
+  // 🔄 Fetch pending tickets for manager's department
   const fetchPending = useCallback(async () => {
     setLoading(true);
     try {
@@ -25,7 +54,7 @@ export function useApprovals() {
     }
   }, [user.department]);
 
-  // 2. Approve one ticket by its ID, then re-fetch
+  // ✅ Approve ticket
   const approveTicket = useCallback(
     async (ticketId) => {
       setLoading(true);
@@ -39,13 +68,12 @@ export function useApprovals() {
           }),
         });
         if (!res.ok) throw new Error(await res.text());
-        // Option A: remove it locally
+        // Remove it locally
         setPending((p) => p.filter((t) => t.ticket_id !== ticketId));
-        // Option B: re-fetch
-        // await fetchPending();
       } catch (err) {
         console.error("Approve failed:", err);
         setError("Failed to approve ticket.");
+        toast.error("Approval failed");
       } finally {
         setLoading(false);
       }
@@ -53,7 +81,6 @@ export function useApprovals() {
     [fetchPending]
   );
 
-  // 3. On mount (or when your department changes), load them
   useEffect(() => {
     if (user?.department) {
       fetchPending();
@@ -61,8 +88,8 @@ export function useApprovals() {
   }, [user.department, fetchPending]);
 
   return {
-    pending,        // array of pending-approval tickets
-    approveTicket,  // call with the ticket_id you want to approve
+    pending,
+    approveTicket,
     loading,
     error,
     refresh: fetchPending,

@@ -58,9 +58,9 @@ export default function TicketForm({ setSubmitTicketModal, initialData = null })
             required
           >
             <option value="IT">IT</option>
-            <option value="HR">HR</option>
+            {/* <option value="HR">HR</option>
             <option value="Finance">Finance</option>
-            <option value="Admin">Admin</option>
+            <option value="Admin">Admin</option> */}
             {/* Add more if needed */}
           </select>
           <input

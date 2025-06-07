@@ -1,15 +1,29 @@
 import DepartmentTicketList from "../ui/lists/DepartmentTicketList";
-import React from "react";
-import { TrendingUp, Clock, CheckCircle, AlertCircle, Eye, Settings, Calendar } from 'lucide-react';
+import { useState, useMemo } from "react";
+import { TrendingUp, Clock, CheckCircle, AlertCircle, Settings, Calendar } from 'lucide-react';
 import { useAuth } from "../../context/AuthContext";
 import { useTickets } from "../../hooks/useTickets";
 import Progress from "../ui/widgets/Progress";
 import StatCard from "../ui/widgets/StatCard";
 import StatusBadge from "../ui/widgets/StatusBadge";
+import DepartmentTicketWidget from "../ui/widgets/DepartmentTicketWidget";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { departmentTickets, refetchDepartmentTickets, loading } = useTickets(user.username);
+  const { departmentTickets, refetchDepartmentTickets, viewTicket, saveTicket, loading } = useTickets(user.username);
+
+  const departmentGroups = useMemo(() => {
+    const groups = departmentTickets.reduce((acc, ticket) => {
+      const dept = ticket.requester?.department || "Unknown";
+      if (!acc[dept]) {
+        acc[dept] = [];
+      }
+      acc[dept].push(ticket);
+      return acc;
+    }, {});
+
+    return groups;
+  }, [departmentTickets]);
 
   // Calculate statistics
   const statusCounts = departmentTickets?.reduce((acc, ticket) => {
@@ -26,6 +40,29 @@ export default function Dashboard() {
 
   // Recent activity data
   const recentTickets = departmentTickets?.slice(0, 3) || [];
+
+  const [selectedDepartment, setSelectedDepartment] = useState(null);
+
+  if (selectedDepartment) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <button
+          onClick={() => setSelectedDepartment(null)}
+          className="mb-4 px-4 py-2 bg-blue-600 text-white rounded"
+        >
+          ← Back to Analytics
+        </button>
+        <h2 className="text-2xl font-semibold mb-6">
+          Tickets for “{selectedDepartment}” Department
+        </h2>
+        <DepartmentTicketList
+          departmentTickets={departmentGroups[selectedDepartment] || []}
+          refetchDepartmentTickets={refetchDepartmentTickets}
+          loading={loading}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -146,10 +183,31 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Recent Activity */}
+        {/* Department Widgets */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-slate-900 mb-6">Department Ticket Status</h2>
+          {Object.keys(departmentGroups).length === 0 ? (
+            <p className="text-gray-500">No department data available yet.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-6">
+              {Object.entries(departmentGroups).map(([department, tickets]) => (
+                <DepartmentTicketWidget
+                  key={department}
+                  department={department}
+                  tickets={tickets}
+                  onClick={() => setSelectedDepartment(department)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Full Department List Below the Widget */}
         <DepartmentTicketList
           departmentTickets={departmentTickets}
           refetchDepartmentTickets={refetchDepartmentTickets}
+          viewTicket={viewTicket}
+          saveTicket={saveTicket}
           loading={loading}
         />
       </div>

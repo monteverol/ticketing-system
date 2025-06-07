@@ -5,7 +5,7 @@ import nodemailer from "nodemailer";
 import dotenv from "dotenv";
 dotenv.config();
 
-const { User, Ticket, TicketUpdate, Attachment } = db;
+const { User, Ticket, TicketUpdate, Attachment, Department } = db;
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -37,6 +37,26 @@ export const getTickets = async (req, res) => {
     res.json(tickets);
   } catch (err) {
     console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+export const getTicketById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ticket = await Ticket.findByPk(id, {
+      include: [
+        { model: User, as: "requester", attributes: ["user_id","username","department"] },
+        { model: Attachment, as: "attachments" }
+      ],
+    });
+
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+    res.json(ticket);
+  } catch (err) {
+    console.error("Error in getTicketById:", err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -105,34 +125,37 @@ export const createTicket = async (req, res) => {
       order: [["createdAt","DESC"]]
     });
 
-    const requester = await User.findByPk(user_id, {
-      attributes: ['username','department','email']
+    const dept = await Department.findOne({
+      where: { name: responding_department },
+      attributes: ['email'],
     });
 
-    if (requester && requester.email) {
+    if (dept && dept.email) {
       await transporter.sendMail({
         from: `"Ticketing System" <${EMAIL_FROM}>`,
-        to: requester.email,
-        subject: `Ticket #${ticket.ticket_id} Received`,
+        to: dept.email,
+        subject: `New ticket (#${ticket.ticket_id}) in ${responding_department}`,
         text: `
-          Hello ${requester.username},
+          Hello ${responding_department} Team,
 
-          Your ticket (#${ticket.ticket_id}) has been created in the ${responding_department} queue.
+          A new ticket (#${ticket.ticket_id}) has arrived in your queue.
 
           • Purpose: ${purpose}
           • Description: ${description}
 
-          We will notify you as soon as it is processed.  
+          Please log into the ticketing portal to review and process it.
+
           Thank you,
-          Support Team
+          Support Bot
         `.trim()
       });
     } else {
       console.warn(
-        `⚠️  Skipping email because user_id=${user_id} has no email value.`
+        `⚠️  Skipping “new ticket” email because department=${responding_department} has no email on file.`
       );
     }
 
+    req.app.get("io").emit("new-ticket", full);
     res.status(201).json(full);
   } catch (err) {
     console.error("Failed to create ticket:", err);
@@ -174,7 +197,7 @@ export const updateTicket = async (req, res) => {
     // 3. Return updated record with associations
     const updated = await Ticket.findByPk(id, {
       include: [
-        { model: User, as: "requester", attributes: ["username", "department", "email"] },
+        { model: User, as: "requester", attributes: ["username", "department"] },
         {
           model: TicketUpdate,
           as: "updates",
@@ -188,43 +211,46 @@ export const updateTicket = async (req, res) => {
 
     const lastUpdate = updated.updates[updated.updates.length - 1];
 
-    // 4) If the requester has an email, send them a notification
-    if (updated.requester?.email) {
-      const { username, email } = updated.requester;
+     const dept = await Department.findOne({
+       where: { name: responding_department },
+       attributes: ['email'],
+     });
 
-      // Craft a simple plain‐text summary (feel free to tweak as HTML if you prefer)
-      const mailOptions = {
+     if (dept && dept.email) {
+       const mailOptions = {
         from: `"Ticketing System" <${EMAIL_FROM}>`,
-        to: email,
-        subject: `Update on Ticket #${updated.ticket_id}`,
+        to: dept.email,
+        subject: `Ticket #${updated.ticket_id} has been updated`,
         text: `
-          Hello ${username},
+          Hello ${responding_department} Team,
 
-          Your ticket (#${updated.ticket_id}) in the ${updated.responding_department} queue has been updated.
+          Ticket #${updated.ticket_id} has just been updated:
 
-            • New Status: ${status}
-            • Remarks: ${remarks || "(no remarks)"}
-            • Updated By: ${lastUpdate.updater.username} (role: ${lastUpdate.updater.role})
+          • New Status: ${status}
+          • Remarks: ${remarks || '(no remarks provided)'}
 
-          Thank you,
-          Support Team
+          Please check the ticket portal for details.
+
+          Thanks,
+          Support Bot
         `.trim(),
-      };
+       };
 
-      try {
-        await transporter.sendMail(mailOptions);
-      } catch (mailErr) {
-        console.warn(
-          `⚠️  Failed to send update email for ticket ${id} to ${email}:`,
-          mailErr.message
-        );
-      }
-    } else {
-      console.warn(
-        `⚠️  Skipping “ticket updated” email because user_id=${updated.user_id} has no email on file.`
-      );
-    }
+       try {
+         await transporter.sendMail(mailOptions);
+       } catch (mailErr) {
+         console.warn(
+           `⚠️ Failed to send “ticket updated” email for #${updated.ticket_id} to ${dept.email}:`,
+           mailErr.message
+         );
+       }
+     } else {
+       console.warn(
+         `⚠️  Skipping “ticket updated” email because department=${responding_department} has no email.`
+       );
+     }
 
+    req.app.get("io").emit("ticket-updated", updated);
     res.json(updated);
   } catch (err) {
     console.error("Failed to update ticket:", err);
@@ -241,7 +267,7 @@ export const getTicketUpdates = async (req, res) => {
       where: { ticket_id: id },
       order: [["updatedAt", "ASC"]],
       include: [
-        { model: User, as: "updater", attributes: ["username"] },
+        { model: User, as: "updater", attributes: ["username", "role"] },
         { model: Attachment, as: "attachments"}
       ],
     });

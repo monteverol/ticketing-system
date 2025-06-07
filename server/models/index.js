@@ -8,6 +8,7 @@ import UserModel from './user.js';
 import TicketModel from './ticket.js';
 import TicketUpdateModel from './ticketupdate.js';
 import AttachmentModel from './attachment.js';
+import DepartmentModel from './department.js';
 
 // Determine directory
 const __filename = fileURLToPath(import.meta.url);
@@ -29,19 +30,15 @@ const User = UserModel(sequelize);
 const Ticket = TicketModel(sequelize);
 const TicketUpdate = TicketUpdateModel(sequelize);
 const Attachment = AttachmentModel(sequelize);
+const Department = DepartmentModel(sequelize);
 
-const db = { User, Ticket, TicketUpdate, Attachment };
+const db = { User, Ticket, TicketUpdate, Attachment, Department };
 
 // after loading all models:
 Object.values(db).forEach(model => {
   if (model.associate) model.associate(db);
 });
 
-// Run associations
-// User.associate({ Ticket, TicketUpdate });
-// Ticket.associate({ User, TicketUpdate });
-// TicketUpdate.associate({ Ticket, User });
-
 // Export models and sequelize instance
-export { sequelize, Sequelize, User, Ticket, TicketUpdate, Attachment };
+export { sequelize, Sequelize, User, Ticket, TicketUpdate, Attachment, Department };
 export default db;

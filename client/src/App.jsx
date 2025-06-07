@@ -13,6 +13,7 @@ import SettingsPanel from "./components/shared/SettingsPanel";
 import MyTicketList from "./components/ui/lists/MyTicketList";
 import Dashboard from "./components/employee/Dashboard";
 import HelpPanel from "./components/shared/HelpPanel";
+import TicketDetailPage from "./pages/TicketDetail";
 
 function Unauthorized() {
   return (
@@ -43,6 +44,12 @@ export default function App() {
           <Route path="tickets" element={
             <RoleBasedRoute allowedRoles={["employee", "manager", "admin"]}>
               <MyTicketList />
+            </RoleBasedRoute>
+          } />
+
+          <Route path="tickets/:ticketId" element={
+            <RoleBasedRoute allowedRoles={["employee", "manager", "admin"]}>
+              <TicketDetailPage />
             </RoleBasedRoute>
           } />
           
